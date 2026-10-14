@@ -57,34 +57,45 @@ public class Main {
 
                     User user = userDao.login(loginUser, loginPass);
                     if (user != null) {
+                        // Prevent non-admin users from logging in if pending
+                        if (user.status().equals("PENDING") && !user.role().equalsIgnoreCase("ADMIN")) {
+                            System.out.println("\nYour account is still PENDING approval by an administrator.");
+                            break;
+                        }
+
                         System.out.println("\nLogin successful! Welcome, " + user.username() + " (" + user.role() + ")");
                         userDao.logActivity(user.userId(), "User login: " + user.username());
 
-                        // Session Menu Loop
-                        boolean loggedIn = true;
-                        while (loggedIn) {
-                            System.out.println("\n=== " + user.role() + " DASHBOARD ===");
-                            System.out.println("1. View Profile Details");
-                            System.out.println("2. Logout");
-                            System.out.print("Choose an option: ");
-                            int subChoice = scanner.nextInt();
-                            scanner.nextLine();
+                        // Route based on role
+                        if (user.role().equalsIgnoreCase("ADMIN")) {
+                            AdminMenu.showMenu(scanner, user, userDao);
+                        } else {
+                            // Session Menu Loop for STAFF / RESIDENT
+                            boolean loggedIn = true;
+                            while (loggedIn) {
+                                System.out.println("\n=== " + user.role() + " DASHBOARD ===");
+                                System.out.println("1. View Profile Details");
+                                System.out.println("2. Logout");
+                                System.out.print("Choose an option: ");
+                                int subChoice = scanner.nextInt();
+                                scanner.nextLine();
 
-                            switch (subChoice) {
-                                case 1:
-                                    System.out.println("\n-- User Profile --");
-                                    System.out.println("ID: " + user.userId());
-                                    System.out.println("Username: " + user.username());
-                                    System.out.println("Role: " + user.role());
-                                    System.out.println("Status: " + user.status());
-                                    break;
-                                case 2:
-                                    System.out.println("Logging out...");
-                                    userDao.logActivity(user.userId(), "User logout: " + user.username());
-                                    loggedIn = false;
-                                    break;
-                                default:
-                                    System.out.println("Invalid choice. Please pick 1 or 2.");
+                                switch (subChoice) {
+                                    case 1:
+                                        System.out.println("\n-- User Profile --");
+                                        System.out.println("ID: " + user.userId());
+                                        System.out.println("Username: " + user.username());
+                                        System.out.println("Role: " + user.role());
+                                        System.out.println("Status: " + user.status());
+                                        break;
+                                    case 2:
+                                        System.out.println("Logging out...");
+                                        userDao.logActivity(user.userId(), "User logout: " + user.username());
+                                        loggedIn = false;
+                                        break;
+                                    default:
+                                        System.out.println("Invalid choice. Please pick 1 or 2.");
+                                }
                             }
                         }
                     } else {
