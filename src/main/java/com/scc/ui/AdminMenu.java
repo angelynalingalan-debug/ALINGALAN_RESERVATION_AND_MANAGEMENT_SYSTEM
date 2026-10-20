@@ -1,4 +1,4 @@
-package com.scc;
+package com.scc.ui;
 
 import com.scc.dao.UserDao;
 import com.scc.model.User;
@@ -58,7 +58,6 @@ public class AdminMenu {
                 return;
             }
 
-            // Display pending users
             System.out.printf("%-5s | %-15s | %-10s | %-10s%n", "ID", "Username", "Role", "Status");
             System.out.println("--------------------------------------------------");
             for (User u : pendingUsers) {

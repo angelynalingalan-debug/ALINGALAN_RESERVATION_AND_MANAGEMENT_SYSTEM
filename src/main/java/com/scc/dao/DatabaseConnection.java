@@ -9,7 +9,12 @@ public class DatabaseConnection {
     private static final String URL = "jdbc:sqlite:ManagementRecordsDatabase.db";
 
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL);
+        Connection conn = DriverManager.getConnection(URL);
+        // Enable SQLite Foreign Key constraints
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = ON;");
+        }
+        return conn;
     }
 
     public static void initializeDatabase() {
@@ -54,6 +59,8 @@ public class DatabaseConnection {
                     "action TEXT NOT NULL, " +
                     "date_time TEXT DEFAULT CURRENT_TIMESTAMP, " +
                     "FOREIGN KEY(user_id) REFERENCES users(user_id));");
+
+            System.out.println("Database initialized successfully and tables verified.");
 
         } catch (SQLException e) {
             System.out.println("Database initialization error: " + e.getMessage());
