@@ -14,8 +14,9 @@ public class AdminMenu {
         while (adminSession) {
             System.out.println("\n=== ADMIN DASHBOARD ===");
             System.out.println("1. View Profile Details");
-            System.out.println("2. Manage Pending User Accounts");
-            System.out.println("3. Logout");
+            System.out.println("2. View All System Users");
+            System.out.println("3. Manage Pending User Accounts & Approvals");
+            System.out.println("4. Logout");
             System.out.print("Choose an option: ");
 
             int choice = scanner.nextInt();
@@ -31,19 +32,47 @@ public class AdminMenu {
                     break;
 
                 case 2:
-                    managePendingUsers(scanner, userDao, adminUser.userId());
+                    viewAllUsers(userDao);
                     break;
 
                 case 3:
+                    managePendingUsers(scanner, userDao, adminUser.userId());
+                    break;
+
+                case 4:
                     System.out.println("Logging out from Admin session...");
                     userDao.logActivity(adminUser.userId(), "Admin logout: " + adminUser.username());
                     adminSession = false;
                     break;
 
                 default:
-                    System.out.println("Invalid choice. Please pick between 1 and 3.");
+                    System.out.println("Invalid choice. Please pick between 1 and 4.");
             }
         }
+    }
+
+    // Structured table rendering helper method using the specified string formatters
+    private static void renderUserTable(List<User> users) {
+        String format = "%-5s | %-15s | %-12s | %-10s%n";
+        String border = "--------------------------------------------------------";
+
+        System.out.printf(format, "ID", "Username", "Role", "Status");
+        System.out.println(border);
+        for (User u : users) {
+            System.out.printf(format, u.userId(), u.username(), u.role(), u.status());
+        }
+    }
+
+    private static void viewAllUsers(UserDao userDao) {
+        System.out.println("\n--- All System Users ---");
+        List<User> allUsers = userDao.getAllUsers();
+
+        if (allUsers.isEmpty()) {
+            System.out.println("No users found in the system.");
+            return;
+        }
+
+        renderUserTable(allUsers);
     }
 
     private static void managePendingUsers(Scanner scanner, UserDao userDao, int adminId) {
@@ -54,45 +83,48 @@ public class AdminMenu {
             List<User> pendingUsers = userDao.getPendingUsers();
 
             if (pendingUsers.isEmpty()) {
-                System.out.println("No pending user accounts found.");
+                System.out.println("No pending user accounts awaiting approval.");
                 return;
             }
 
-            System.out.printf("%-5s | %-15s | %-10s | %-10s%n", "ID", "Username", "Role", "Status");
-            System.out.println("--------------------------------------------------");
-            for (User u : pendingUsers) {
-                System.out.printf("%-5d | %-15s | %-10s | %-10s%n", u.userId(), u.username(), u.role(), u.status());
-            }
+            renderUserTable(pendingUsers);
 
             System.out.println("\nOptions:");
-            System.out.println("1. Approve/Reject a User");
+            System.out.println("1. Approve a User Account");
             System.out.println("2. Back to Admin Dashboard");
             System.out.print("Choose an option: ");
             int option = scanner.nextInt();
             scanner.nextLine();
 
             if (option == 1) {
-                System.out.print("Enter User ID to update: ");
+                System.out.print("Enter Target User ID to approve (Enter 0 to cancel): ");
                 int targetUserId = scanner.nextInt();
                 scanner.nextLine();
 
-                System.out.print("Set status to (ACTIVE / REJECTED): ");
-                String newStatus = scanner.nextLine().toUpperCase();
+                // Input safety and cancellation check
+                if (targetUserId == 0) {
+                    System.out.println("Approval action cancelled.");
+                    continue;
+                }
 
-                if (newStatus.equals("ACTIVE") || newStatus.equals("REJECTED")) {
-                    if (userDao.updateUserStatus(targetUserId, newStatus)) {
-                        System.out.println("User status successfully updated to " + newStatus + "!");
-                        userDao.logActivity(adminId, "Updated user ID " + targetUserId + " status to " + newStatus);
+                // Verify the ID exists in the pending list
+                boolean existsInPending = pendingUsers.stream()
+                        .anyMatch(u -> u.userId() == targetUserId);
+
+                if (existsInPending) {
+                    if (userDao.approveUser(targetUserId)) {
+                        System.out.println("User account ID " + targetUserId + " successfully approved!");
+                        userDao.logActivity(adminId, "Approved user account ID " + targetUserId);
                     } else {
-                        System.out.println("Failed to update user status. Check if ID is correct.");
+                        System.out.println("Failed to update user status in the database.");
                     }
                 } else {
-                    System.out.println("Invalid status! Please type ACTIVE or REJECTED.");
+                    System.out.println("Invalid User ID! ID was not found in the pending list.");
                 }
             } else if (option == 2) {
                 managing = false;
             } else {
-                System.out.println("Invalid choice.");
+                System.out.println("Invalid choice. Please pick 1 or 2.");
             }
         }
     }

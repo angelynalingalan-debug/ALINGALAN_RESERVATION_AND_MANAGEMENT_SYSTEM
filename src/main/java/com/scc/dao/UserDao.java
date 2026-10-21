@@ -56,6 +56,29 @@ public class UserDao {
         }
     }
 
+    // Returns a List<User> containing all registered accounts regardless of role
+    public List<User> getAllUsers() {
+        List<User> users = new ArrayList<>();
+        String sql = "SELECT * FROM users";
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                users.add(new User(
+                        rs.getInt("user_id"),
+                        rs.getString("username"),
+                        rs.getString("password"),
+                        rs.getString("role"),
+                        rs.getString("status")
+                ));
+            }
+        } catch (SQLException e) {
+            System.out.println("Error fetching all users: " + e.getMessage());
+        }
+        return users;
+    }
+
+    // Returns a List<User> where status = 'PENDING' across all user role types
     public List<User> getPendingUsers() {
         List<User> users = new ArrayList<>();
         String sql = "SELECT * FROM users WHERE status = 'PENDING'";
@@ -77,16 +100,16 @@ public class UserDao {
         return users;
     }
 
-    public boolean updateUserStatus(int userId, String status) {
-        String sql = "UPDATE users SET status = ? WHERE user_id = ?";
+    // Updates a target user's account status from 'PENDING' to 'APPROVED'
+    public boolean approveUser(int userId) {
+        String sql = "UPDATE users SET status = 'APPROVED' WHERE user_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, status);
-            pstmt.setInt(2, userId);
+            pstmt.setInt(1, userId);
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            System.out.println("Error updating user status: " + e.getMessage());
+            System.out.println("Error approving user: " + e.getMessage());
             return false;
         }
     }
