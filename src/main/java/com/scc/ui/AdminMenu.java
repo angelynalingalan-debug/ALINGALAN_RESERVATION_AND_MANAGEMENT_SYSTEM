@@ -16,11 +16,10 @@ public class AdminMenu {
             System.out.println("1. View Profile Details");
             System.out.println("2. View All System Users");
             System.out.println("3. Manage Pending User Accounts & Approvals");
-            System.out.println("4. Logout");
-            System.out.print("Choose an option: ");
+            System.out.println("4. Update User Role and Status");
+            System.out.println("5. Logout");
 
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
+            int choice = readIntInput(scanner, "Choose an option: ");
 
             switch (choice) {
                 case 1:
@@ -40,18 +39,64 @@ public class AdminMenu {
                     break;
 
                 case 4:
+                    updateUserRoleAndStatusMenu(scanner, userDao, adminUser);
+                    break;
+
+                case 5:
                     System.out.println("Logging out from Admin session...");
                     userDao.logActivity(adminUser.userId(), "Admin logout: " + adminUser.username());
                     adminSession = false;
                     break;
 
                 default:
-                    System.out.println("Invalid choice. Please pick between 1 and 4.");
+                    System.out.println("Invalid choice. Please pick between 1 and 5.");
             }
         }
     }
 
-    // Structured table rendering helper method using the specified string formatters
+    // --- INPUT VALIDATION WRAPPERS ---
+
+    // Catches non-numeric inputs (letters/symbols) without throwing InputMismatchException
+    private static int readIntInput(Scanner scanner, String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = scanner.nextLine().trim();
+            try {
+                return Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input! Please enter a valid number.");
+            }
+        }
+    }
+
+    // Repeatedly prompts until a valid role (or cancellation '0') is provided
+    private static String readValidRole(Scanner scanner) {
+        while (true) {
+            System.out.print("Enter new role (ADMIN / STAFF / RESIDENT) (Enter 0 to cancel): ");
+            String role = scanner.nextLine().trim().toUpperCase();
+
+            if (role.equals("0") || role.equals("ADMIN") || role.equals("STAFF") || role.equals("RESIDENT")) {
+                return role;
+            }
+            System.out.println("Invalid role! Accepted roles are ADMIN, STAFF, or RESIDENT.");
+        }
+    }
+
+    // Repeatedly prompts until a valid status (or cancellation '0') is provided
+    private static String readValidStatus(Scanner scanner) {
+        while (true) {
+            System.out.print("Enter new status (APPROVED / PENDING) (Enter 0 to cancel): ");
+            String status = scanner.nextLine().trim().toUpperCase();
+
+            if (status.equals("0") || status.equals("APPROVED") || status.equals("PENDING")) {
+                return status;
+            }
+            System.out.println("Invalid status! Accepted statuses are APPROVED or PENDING.");
+        }
+    }
+
+    // --- TABLE RENDERING HELPER ---
+
     private static void renderUserTable(List<User> users) {
         String format = "%-5s | %-15s | %-12s | %-10s%n";
         String border = "--------------------------------------------------------";
@@ -62,6 +107,8 @@ public class AdminMenu {
             System.out.printf(format, u.userId(), u.username(), u.role(), u.status());
         }
     }
+
+    // --- DASHBOARD ACTIONS ---
 
     private static void viewAllUsers(UserDao userDao) {
         System.out.println("\n--- All System Users ---");
@@ -92,22 +139,17 @@ public class AdminMenu {
             System.out.println("\nOptions:");
             System.out.println("1. Approve a User Account");
             System.out.println("2. Back to Admin Dashboard");
-            System.out.print("Choose an option: ");
-            int option = scanner.nextInt();
-            scanner.nextLine();
+
+            int option = readIntInput(scanner, "Choose an option: ");
 
             if (option == 1) {
-                System.out.print("Enter Target User ID to approve (Enter 0 to cancel): ");
-                int targetUserId = scanner.nextInt();
-                scanner.nextLine();
+                int targetUserId = readIntInput(scanner, "Enter Target User ID to approve (Enter 0 to cancel): ");
 
-                // Input safety and cancellation check
                 if (targetUserId == 0) {
                     System.out.println("Approval action cancelled.");
                     continue;
                 }
 
-                // Verify the ID exists in the pending list
                 boolean existsInPending = pendingUsers.stream()
                         .anyMatch(u -> u.userId() == targetUserId);
 
@@ -125,6 +167,66 @@ public class AdminMenu {
                 managing = false;
             } else {
                 System.out.println("Invalid choice. Please pick 1 or 2.");
+            }
+        }
+    }
+
+    private static void updateUserRoleAndStatusMenu(Scanner scanner, UserDao userDao, User adminUser) {
+        boolean updating = true;
+
+        while (updating) {
+            System.out.println("\n--- Update User Role and Status ---");
+            List<User> allUsers = userDao.getAllUsers();
+
+            if (allUsers.isEmpty()) {
+                System.out.println("No users found in the system.");
+                return;
+            }
+
+            renderUserTable(allUsers);
+
+            int targetUserId = readIntInput(scanner, "\nEnter Target User ID to update (Enter 0 to cancel): ");
+
+            if (targetUserId == 0) {
+                System.out.println("Update action cancelled.");
+                return;
+            }
+
+            if (targetUserId == adminUser.userId()) {
+                System.out.println("WARNING: Modifying the currently active admin account is restricted.");
+                continue;
+            }
+
+            boolean userExists = allUsers.stream().anyMatch(u -> u.userId() == targetUserId);
+            if (!userExists) {
+                System.out.println("Invalid User ID! User not found.");
+                continue;
+            }
+
+            // Using the validation wrappers
+            String newRole = readValidRole(scanner);
+            if (newRole.equals("0")) {
+                System.out.println("Update action cancelled.");
+                return;
+            }
+
+            String newStatus = readValidStatus(scanner);
+            if (newStatus.equals("0")) {
+                System.out.println("Update action cancelled.");
+                return;
+            }
+
+            if (userDao.updateUserRoleAndStatus(targetUserId, newRole, newStatus)) {
+                System.out.println("User ID " + targetUserId + " successfully updated!");
+                userDao.logActivity(adminUser.userId(), "Updated role and status for user ID " + targetUserId);
+            } else {
+                System.out.println("Failed to update user in the database.");
+            }
+
+            System.out.print("\nDo you want to update another user? (y/n): ");
+            String continueChoice = scanner.nextLine().trim();
+            if (!continueChoice.equalsIgnoreCase("y")) {
+                updating = false;
             }
         }
     }
