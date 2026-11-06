@@ -1,27 +1,45 @@
-package com.scc;
+    package com.scc;
 
-import com.scc.dao.DatabaseConnection;
+import com.scc.dao.DatabaseInitializer;
 import com.scc.dao.UserDao;
 import com.scc.ui.Authentication;
 
 import java.util.Scanner;
 
 public class Main {
-    public static void main(String[] args) {
-        // 1. Automatically initialize SQLite database and tables on startup
-        DatabaseConnection.initializeDatabase();
 
-        // 2. Instantiate shared dependencies
+    public static void main(String[] args) {
+
+        // INITIALIZE DATABASE
+        System.out.println("\nInitializing database...");
+
+        DatabaseInitializer.initializeDatabase();
+
+        System.out.println("Database initialized successfully!");
+
+        // CREATE SHARED OBJECTS
         Scanner scanner = new Scanner(System.in);
         UserDao userDao = new UserDao();
 
-        System.out.println("===================================================");
-        System.out.println(" Community Facility Reservation & Management System ");
-        System.out.println("===================================================\n");
+        // MAIN SYSTEM TITLE
+        System.out.println("\n======================================");
+        System.out.println(" COMMUNITY FACILITY RESERVATION SYSTEM");
+        System.out.println("======================================");
 
-        // 3. Delegate execution flow strictly to Authentication
-        Authentication.start(scanner, userDao);
+        try {
 
-        scanner.close();
+            // START AUTHENTICATION
+            Authentication.start(scanner, userDao);
+
+        } catch (Exception e) {
+
+            System.out.println("\nSystem error: " + e.getMessage());
+
+        } finally {
+
+            scanner.close();
+
+            System.out.println("\nSystem closed.");
+        }
     }
 }

@@ -1,3 +1,4 @@
+
 package com.scc.ui;
 
 import com.scc.dao.UserDao;
@@ -6,103 +7,194 @@ import com.scc.model.User;
 import java.util.Scanner;
 
 public class Authentication {
-    public static void start(Scanner scanner, UserDao userDao) {
+
+    // START MAIN MENU
+    public static void start(
+            Scanner scanner,
+            UserDao userDao) {
+
         boolean running = true;
+
         while (running) {
-            System.out.println("\n[MAIN MENU]");
+
+            System.out.println("\n================================");
+            System.out.println("           MAIN MENU");
+            System.out.println("================================");
             System.out.println("1. Register Account");
             System.out.println("2. Login");
             System.out.println("3. Exit");
-            System.out.print("Choose an option: ");
+            System.out.println("================================");
 
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // consume leftover newline
+            int choice = readInt(scanner, "Enter your choice: ");
 
             switch (choice) {
-                case 1:
-                    handleRegistration(scanner, userDao);
-                    break;
-                case 2:
-                    handleLogin(scanner, userDao);
-                    break;
-                case 3:
-                    System.out.println("Exiting system. Goodbye!");
+
+                // REGISTER ACCOUNT
+                case 1 -> registerAccount(scanner, userDao);
+
+                // LOGIN
+                case 2 -> loginAccount(scanner, userDao);
+
+                // EXIT
+                case 3 -> {
                     running = false;
-                    break;
-                default:
-                    System.out.println("Invalid choice. Please select 1, 2, or 3.");
+                    System.out.println("\nThank you for using the system!");
+                    System.out.println("Goodbye!");
+                }
+
+                default -> System.out.println(
+                        "Invalid choice. Please select 1-3.");
             }
         }
     }
 
-    private static void handleRegistration(Scanner scanner, UserDao userDao) {
-        System.out.print("Enter username: ");
-        String regUser = scanner.nextLine();
-        System.out.print("Enter password: ");
-        String regPass = scanner.nextLine();
-        System.out.print("Enter role (ADMIN / STAFF / RESIDENT): ");
-        String regRole = scanner.nextLine().toUpperCase();
+    // REGISTER ACCOUNT
+    private static void registerAccount(
+            Scanner scanner,
+            UserDao userDao) {
 
-        if (!regRole.equals("ADMIN") && !regRole.equals("STAFF") && !regRole.equals("RESIDENT")) {
-            System.out.println("Invalid role! Please choose ADMIN, STAFF, or RESIDENT.");
+        System.out.println("\n================================");
+        System.out.println("        REGISTER ACCOUNT");
+        System.out.println("================================");
+
+        System.out.print("Enter Username: ");
+        String username = scanner.nextLine().trim();
+
+        System.out.print("Enter Password: ");
+        String password = scanner.nextLine();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            System.out.println(
+                    "Username and password cannot be empty.");
             return;
         }
 
-        if (userDao.registerUser(regUser, regPass, regRole)) {
-            System.out.println("Registration successful! Account status is PENDING.");
+        System.out.println("\nSELECT ACCOUNT ROLE");
+        System.out.println("1. STAFF");
+        System.out.println("2. RESIDENT");
+
+        int roleChoice = readInt(scanner, "Choose role: ");
+
+        String role;
+
+        switch (roleChoice) {
+            case 1 -> role = "STAFF";
+            case 2 -> role = "RESIDENT";
+            default -> {
+                System.out.println("Invalid role selection.");
+                return;
+            }
+        }
+
+        boolean registered = userDao.register(
+                username,
+                password,
+                role
+        );
+
+        if (registered) {
+
+            System.out.println("\nRegistration successful!");
+
+            System.out.println("Username: " + username);
+            System.out.println("Role: " + role);
+            System.out.println("Account Status: PENDING");
+
+            System.out.println(
+                    "Please wait for administrator approval.");
+
         } else {
-            System.out.println("Registration failed. Username may already exist.");
+
+            System.out.println("\nRegistration failed.");
+
+            System.out.println(
+                    "Username may already exist or a database error occurred.");
         }
     }
 
-    private static void handleLogin(Scanner scanner, UserDao userDao) {
-        System.out.print("Enter username: ");
-        String loginUser = scanner.nextLine();
-        System.out.print("Enter password: ");
-        String loginPass = scanner.nextLine();
+    // LOGIN ACCOUNT
+    private static void loginAccount(
+            Scanner scanner,
+            UserDao userDao) {
 
-        User user = userDao.login(loginUser, loginPass);
-        if (user != null) {
-            if (user.status().equals("PENDING") && !user.role().equalsIgnoreCase("ADMIN")) {
-                System.out.println("\nYour account is still PENDING approval by an administrator.");
-                return;
+        System.out.println("\n================================");
+        System.out.println("              LOGIN");
+        System.out.println("================================");
+
+        System.out.print("Enter Username: ");
+        String username = scanner.nextLine().trim();
+
+        System.out.print("Enter Password: ");
+        String password = scanner.nextLine();
+
+        if (username.isEmpty() || password.isEmpty()) {
+
+            System.out.println(
+                    "Username and password are required.");
+
+            return;
+        }
+
+        User user = userDao.login(username, password);
+
+        if (user == null) {
+
+            System.out.println(
+                    "\nLogin failed or account is not approved.");
+
+            return;
+        }
+
+        System.out.println("\nLogin successful!");
+        System.out.println("Welcome, " + user.username());
+        System.out.println("Role: " + user.role());
+
+        // OPEN DASHBOARD BASED ON ROLE
+        switch (user.role().toUpperCase()) {
+
+            case "ADMIN" -> AdminMenu.showMenu(
+                    scanner,
+                    user,
+                    userDao
+            );
+
+            case "STAFF" -> StaffMenu.showMenu(
+                    scanner,
+                    user,
+                    userDao
+            );
+
+            case "RESIDENT" -> ResidentMenu.showMenu(
+                    scanner,
+                    user,
+                    userDao
+            );
+
+            default -> System.out.println(
+                    "Invalid user role.");
+        }
+    }
+
+    // INTEGER INPUT VALIDATION
+    public static int readInt(
+            Scanner scanner,
+            String message) {
+
+        while (true) {
+
+            System.out.print(message);
+
+            String input = scanner.nextLine().trim();
+
+            try {
+
+                return Integer.parseInt(input);
+
+            } catch (NumberFormatException e) {
+
+                System.out.println(
+                        "Invalid input. Please enter a number.");
             }
-
-            System.out.println("\nLogin successful! Welcome, " + user.username() + " (" + user.role() + ")");
-            userDao.logActivity(user.userId(), "User login: " + user.username());
-
-            if (user.role().equalsIgnoreCase("ADMIN")) {
-                AdminMenu.showMenu(scanner, user, userDao);
-            } else {
-                boolean loggedIn = true;
-                while (loggedIn) {
-                    System.out.println("\n=== " + user.role() + " DASHBOARD ===");
-                    System.out.println("1. View Profile Details");
-                    System.out.println("2. Logout");
-                    System.out.print("Choose an option: ");
-                    int subChoice = scanner.nextInt();
-                    scanner.nextLine();
-
-                    switch (subChoice) {
-                        case 1:
-                            System.out.println("\n-- User Profile --");
-                            System.out.println("ID: " + user.userId());
-                            System.out.println("Username: " + user.username());
-                            System.out.println("Role: " + user.role());
-                            System.out.println("Status: " + user.status());
-                            break;
-                        case 2:
-                            System.out.println("Logging out...");
-                            userDao.logActivity(user.userId(), "User logout: " + user.username());
-                            loggedIn = false;
-                            break;
-                        default:
-                            System.out.println("Invalid choice. Please pick 1 or 2.");
-                    }
-                }
-            }
-        } else {
-            System.out.println("Invalid username or password.");
         }
     }
 }
